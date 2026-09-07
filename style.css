@@ -1,0 +1,270 @@
+:root {
+    /* Paleta N-Line Hyundai */
+    --n-black: #111111;
+    --n-dark-gray: #1a1c20;
+    --n-red: #e6332a;
+    --n-blue: #92c4df; /* Performance Blue */
+    --text-light: #f5f5f5;
+    --border-color: #2a2d34;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--n-black);
+    color: var(--text-light);
+    margin: 0;
+    padding: 20px;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--n-red);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+.n-line-badge {
+    background-color: var(--text-light);
+    color: var(--n-black);
+    font-weight: 900;
+    font-style: italic;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-right: 10px;
+    font-size: 1.2em;
+}
+
+.n-line-badge span {
+    color: var(--n-red);
+}
+
+.header-titles h1 {
+    display: inline;
+    color: var(--text-light);
+    font-size: 1.8em;
+    margin: 0;
+}
+
+.header-titles p {
+    margin: 5px 0 0 0;
+    color: var(--n-blue);
+    font-weight: bold;
+}
+
+/* Botones */
+.btn {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: var(--n-blue);
+    color: var(--n-black);
+}
+
+.btn-primary:hover {
+    background-color: #7ab3d1;
+}
+
+.btn-secondary {
+    background-color: var(--n-dark-gray);
+    color: var(--text-light);
+    border: 1px solid var(--border-color);
+    margin-right: 10px;
+}
+
+.btn-secondary:hover {
+    border-color: var(--n-red);
+}
+
+/* Tabla */
+.table-container {
+    overflow-x: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background-color: var(--n-dark-gray);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    white-space: nowrap;
+}
+
+th, td {
+    border: 1px solid var(--border-color);
+    padding: 12px 15px;
+    text-align: left;
+    font-size: 0.85em;
+}
+
+th {
+    background-color: #000;
+    color: var(--n-red);
+    position: sticky;
+    top: 0;
+    font-weight: 600;
+}
+
+/* Colores de Calificación */
+.row-molesto {
+    background-color: rgba(230, 51, 42, 0.15); /* Rojo */
+    border-left: 4px solid var(--n-red);
+}
+
+.row-dudoso {
+    background-color: rgba(128, 128, 128, 0.15); /* Gris */
+    border-left: 4px solid #888;
+}
+
+.row-contento {
+    background-color: rgba(146, 196, 223, 0.15); /* Performance Blue */
+    border-left: 4px solid var(--n-blue);
+}
+
+.row-excelente {
+    background-color: rgba(40, 167, 69, 0.15); /* Verde Claro */
+    border-left: 4px solid #28a745;
+}
+
+tbody tr:hover {
+    filter: brightness(1.2);
+}
+
+/* Animación Pac-Man Ghost */
+.ghost-loader-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 80px;
+}
+.ghost {
+    width: 40px; height: 40px;
+    background-color: var(--n-blue);
+    border-radius: 20px 20px 0 0;
+    position: relative;
+    animation: float 1s infinite alternate;
+}
+.ghost .eyes {
+    position: absolute; top: 10px; left: 8px;
+    width: 8px; height: 8px;
+    background: white; border-radius: 50%;
+    box-shadow: 16px 0 0 white;
+}
+.ghost .eyes::after {
+    content: ''; position: absolute; top: 3px; left: 2px;
+    width: 3px; height: 3px;
+    background: var(--n-black); border-radius: 50%;
+    box-shadow: 16px 0 0 var(--n-black);
+}
+.ghost .skirt {
+    position: absolute; bottom: -5px; width: 100%; height: 10px;
+    background: radial-gradient(circle, var(--n-blue) 5px, transparent 5px);
+    background-size: 13.3px 10px;
+}
+@keyframes float {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-10px); }
+}
+
+/* Filtros de Fecha */
+.filter-container {
+    background-color: var(--n-dark-gray);
+    padding: 10px 15px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    margin: 0 15px;
+    display: flex;
+    align-items: center;
+}
+
+.date-filters {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+}
+
+.date-filters label {
+    font-size: 0.9em;
+    font-weight: bold;
+    color: var(--n-blue);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.date-input {
+    background-color: var(--n-black);
+    color: var(--text-light);
+    border: 1px solid var(--border-color);
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-family: inherit;
+    color-scheme: dark; /* Hace que el calendario nativo sea oscuro */
+}
+
+.date-input:focus {
+    outline: none;
+    border-color: var(--n-red);
+}
+
+/* Ajuste del header para que los filtros quepan bien */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    border-bottom: 2px solid var(--n-red);
+    padding-bottom: 15px;
+    margin-bottom: 20px;
+}
+
+/* Botón de Vistas y Acción */
+.btn-warning {
+    background-color: #f39c12;
+    color: var(--n-black);
+}
+.btn-warning:hover {
+    background-color: #e67e22;
+}
+.btn-action {
+    background-color: var(--n-red);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.btn-action.restore {
+    background-color: #28a745;
+}
+
+/* Colapso por doble clic */
+th, td {
+    transition: width 0.2s, background-color 0.2s, color 0.2s;
+}
+th {
+    cursor: pointer;
+}
+.collapsed-col {
+    max-width: 15px !important;
+    width: 15px !important;
+    min-width: 15px !important;
+    overflow: hidden;
+    color: transparent !important;
+    background-color: var(--border-color) !important;
+    padding: 0 !important;
+    border-right: 2px solid #555 !important;
+}
+.collapsed-col * {
+    display: none;
+}
