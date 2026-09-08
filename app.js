@@ -12,8 +12,20 @@ const app = initializeApp(firebaseConfig);
 const database = getDatabase(app);
 
 let allFirebaseData = []; 
-let currentViewMode = "normal"; // Puede ser "normal" o "ocultos"
+let currentViewMode = "normal";
+let isAdmin = false;
 
+// --- CARRUSEL SIMPSONS ---
+let currentGifIndex = 1;
+setInterval(() => {
+    currentGifIndex = currentGifIndex >= 7 ? 1 : currentGifIndex + 1;
+    const gifElement = document.getElementById('simpsonGif');
+    if (gifElement) {
+        gifElement.src = `MEDIA/GIF${currentGifIndex}.gif`;
+    }
+}, 3500);
+
+// --- FUNCIONES DE FORMATEO Y LÓGICA DE NEGOCIO ---
 function splitName(fullName) {
     if (!fullName) return { first: "", last: "" };
     const parts = fullName.trim().split(" ");
@@ -25,82 +37,148 @@ function splitName(fullName) {
 
 function parseDateString(dateStr) {
     if (!dateStr) return null;
-    if (dateStr.includes('-')) return new Date(dateStr + 'T00:00:00');
-    const parts = dateStr.split('/');
+    if (typeof dateStr === 'number') return new Date((dateStr - (25567 + 2)) * 86400 * 1000);
+    const str = String(dateStr);
+    if (str.includes('-')) return new Date(str + 'T00:00:00');
+    const parts = str.split('/');
     if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}T00:00:00`);
-    return new Date(dateStr);
+    return new Date(str);
 }
 
-// Validación matemática estricta para 10,000
 function esPrimeraOcasion(motivo) {
     if (!motivo) return "N";
-    // Eliminamos comas para limpiar la cadena (ej. "10,000" -> "10000")
-    const textoLimpio = String(motivo).replace(/,/g, '');
-    // Extraemos secuencias numéricas continuas
-    const numeros = textoLimpio.match(/\d+/g);
-    if (numeros && numeros.includes("10000")) {
-        return "Y";
-    }
+    const numeros = String(motivo).replace(/,/g, '').match(/\d+/g);
+    if (numeros && numeros.includes("10000")) return "Y";
     return "N";
 }
 
+function formatAsesor(asesorStr) {
+    if (!asesorStr) return "";
+    const match = asesorStr.match(/(0[12]\s*ASE)[-\s]+([A-ZÁÉÍÓÚÑ]+)/i);
+    if (match) {
+        return `${match[1].replace('-','').trim()} ${match[2]}`.toUpperCase();
+    }
+    return asesorStr.split(" ")[0].toUpperCase();
+}
+
+function updateDatalists() {
+    const pfsuSet = new Set(), mejoraSet = new Set();
+    const com1Set = new Set(), com2Set = new Set();
+
+    allFirebaseData.forEach(row => {
+        if (row.Comentario_PFSU) pfsuSet.add(row.Comentario_PFSU);
+        if (row.Area_Mejora) mejoraSet.add(row.Area_Mejora);
+        if (row.Comentarios_Atencion) com1Set.add(row.Comentarios_Atencion);
+        if (row.Comentarios_NPS) com2Set.add(row.Comentarios_NPS);
+    });
+
+    const buildOptions = (set) => Array.from(set).map(val => `<option value="${val}">`).join('');
+    
+    const pfsuList = document.getElementById('list-pfsu');
+    const mejoraList = document.getElementById('list-mejora');
+    const com1List = document.getElementById('list-comentarios1');
+    const com2List = document.getElementById('list-comentarios2');
+
+    if (pfsuList) pfsuList.innerHTML = buildOptions(pfsuSet);
+    if (mejoraList) mejoraList.innerHTML = buildOptions(mejoraSet);
+    if (com1List) com1List.innerHTML = buildOptions(com1Set);
+    if (com2List) com2List.innerHTML = buildOptions(com2Set);
+}
+
+// --- RENDERIZADO DE TABLA ---
 function renderTable(dataArray) {
     const tableBody = document.getElementById("tableBody");
+    if (!tableBody) return;
+    
     let rowsHtml = "";
 
-    // Filtramos según la vista actual antes de dibujar
-    const datosMostrar = dataArray.filter(row => {
-        if (currentViewMode === "normal") return !row.descartado;
-        return row.descartado === true; // Vista de ocultos
+    const datosMostrar = dataArray.filter(row => currentViewMode === "normal" ? !row.descartado : row.descartado === true);
+
+    datosMostrar.sort((a, b) => {
+        if (!a.FechaCierre && !b.FechaCierre) return 0;
+        if (!a.FechaCierre) return 1;
+        if (!b.FechaCierre) return -1;
+        return parseDateString(b.FechaCierre) - parseDateString(a.FechaCierre);
     });
 
     datosMostrar.forEach(row => {
         const { first, last } = splitName(row.Cliente);
-        
-        let calif = (row.calif || "").toLowerCase();
-        let rowClass = "";
-        if (calif.includes("molesto")) rowClass = "row-molesto";
-        else if (calif.includes("dudoso")) rowClass = "row-dudoso";
-        else if (calif.includes("contento")) rowClass = "row-contento";
-        else if (calif.includes("excelente")) rowClass = "row-excelente";
+        let rowClass = (row.calif || "").toLowerCase().includes("molesto") ? "row-molesto" :
+                       (row.calif || "").toLowerCase().includes("dudoso") ? "row-dudoso" :
+                       (row.calif || "").toLowerCase().includes("contento") ? "row-contento" :
+                       (row.calif || "").toLowerCase().includes("excelente") ? "row-excelente" : "";
+        if (!row.FechaCierre) rowClass += " opacity-75"; 
 
-        const primeraOcasion = esPrimeraOcasion(row.Servicio);
         const actionBtn = currentViewMode === "normal" 
             ? `<button class="btn-action" data-id="${row.id}" data-action="hide">X</button>`
             : `<button class="btn-action restore" data-id="${row.id}" data-action="restore">↩</button>`;
 
+        const editAttr = isAdmin ? `contenteditable="true" class="editable-cell"` : "";
+
+        const selContactado = `
+            <select class="free-edit-select" data-id="${row.id}" data-field="Contactado">
+                <option value=""></option>
+                <option value="Si" ${row.Contactado === 'Si' ? 'selected' : ''}>Sí</option>
+                <option value="No" ${row.Contactado === 'No' ? 'selected' : ''}>No</option>
+            </select>`;
+        
+        const selLavado = `
+            <select class="free-edit-select" data-id="${row.id}" data-field="Calificacion_Lavado">
+                <option value=""></option>
+                <option value="Bueno" ${row.Calificacion_Lavado === 'Bueno' ? 'selected' : ''}>Bueno</option>
+                <option value="Malo" ${row.Calificacion_Lavado === 'Malo' ? 'selected' : ''}>Malo</option>
+            </select>`;
+            
+        const selAtencion = `
+            <select class="free-edit-select" data-id="${row.id}" data-field="Atencion_Entrega">
+                <option value=""></option>
+                <option value="Buena" ${row.Atencion_Entrega === 'Buena' ? 'selected' : ''}>Buena</option>
+                <option value="Mala" ${row.Atencion_Entrega === 'Mala' ? 'selected' : ''}>Mala</option>
+            </select>`;
+
         rowsHtml += `
-            <tr class="${rowClass}">
+            <tr class="${rowClass}" data-rowid="${row.id}">
                 <td>${actionBtn}</td>
-                <td>B20ABVE002</td>
-                <td>Hyundai Coatza</td>
-                <td>VERACRUZ</td>
-                <td>${row.VIN || ""}</td>
-                <td>C</td>
-                <td>MANTENIMIENTO</td>
-                <td class="col-vacia"></td>
-                <td>${first}</td>
-                <td>${last}</td>
-                <td class="col-vacia"></td>
-                <td class="col-vacia"></td>
-                <td class="col-vacia"></td>
-                <td class="col-vacia"></td>
-                <td>${row.Asesor || ""}</td>
-                <td class="col-vacia"></td>
-                <td>${row.Vehiculo || ""}</td>
-                <td>HMM</td>
-                <td>H</td>
-                <td class="col-vacia"></td>
-                <td>B20AB</td>
-                <td>VE002</td>
-                <td>${primeraOcasion}</td>
-                <td class="col-vacia"></td>
-                <td class="col-vacia"></td>
-                <td class="col-vacia"></td>
-                <td>${row.Fecha || ""}</td>
-                <td>${row.Servicio || ""}</td>
-                <td>${row.calif || ""}</td>
-                <td>${row.comentarios || ""}</td>
+                <td class="col-no-importante">B20ABVE002</td>
+                <td class="col-no-importante">Hyundai Coatza</td>
+                <td class="col-no-importante">VERACRUZ</td>
+                <td ${editAttr} data-field="VIN">${row.VIN || ""}</td>
+                <td class="col-no-importante">C</td>
+                <td class="col-no-importante">MANTENIMIENTO</td>
+                <td ${editAttr} data-field="OrdenReparacion">${row.OrdenReparacion || ""}</td>
+                <td ${editAttr} data-field="Cliente">${first}</td>
+                <td ${editAttr} data-field="Cliente">${last}</td>
+                <td ${editAttr} data-field="NombreExcel">${row.NombreExcel || ""}</td>
+                <td ${editAttr} data-field="TelefonoExcel">${row.TelefonoExcel || ""}</td>
+                <td class="col-no-importante">${row.TelefonoExcel || ""}</td>
+                <td class="col-no-importante">${row.TelefonoExcel || ""}</td>
+                <td class="col-no-importante" ${editAttr} data-field="EmailExcel">${row.EmailExcel || ""}</td>
+                <td ${editAttr} data-field="Asesor">${formatAsesor(row.Asesor)}</td>
+                <td class="col-no-importante"></td>
+                <td ${editAttr} data-field="Vehiculo">${row.Vehiculo || ""}</td>
+                <td class="col-no-importante">HMM</td>
+                <td class="col-no-importante">H</td>
+                <td class="col-no-importante"></td>
+                <td class="col-no-importante">B20AB</td>
+                <td class="col-no-importante">VE002</td>
+                <td>${esPrimeraOcasion(row.Servicio)}</td>
+                <td ${editAttr} data-field="AnioModelo">${row.AnioModelo || ""}</td>
+                <td ${editAttr} data-field="FechaCierre">${row.FechaCierre || ""}</td>
+                <td ${editAttr} data-field="MontoTotal">${row.MontoTotal || ""}</td>
+                <td ${editAttr} data-field="Fecha">${row.Fecha || ""}</td>
+                <td ${editAttr} data-field="Servicio">${row.Servicio || ""}</td>
+                <td ${editAttr} data-field="calif">${row.calif || ""}</td>
+                <td ${editAttr} data-field="comentarios">${row.comentarios || ""}</td>
+                
+                <!-- Campos CRM -->
+                <td>${selContactado}</td>
+                <td><input type="text" class="free-edit-input" list="list-pfsu" data-id="${row.id}" data-field="Comentario_PFSU" value="${row.Comentario_PFSU || ''}"></td>
+                <td>${selLavado}</td>
+                <td><input type="text" class="free-edit-input" list="list-mejora" data-id="${row.id}" data-field="Area_Mejora" value="${row.Area_Mejora || ''}"></td>
+                <td>${selAtencion}</td>
+                <td><input type="text" class="free-edit-input" list="list-comentarios1" data-id="${row.id}" data-field="Comentarios_Atencion" value="${row.Comentarios_Atencion || ''}"></td>
+                <td><input type="number" class="free-edit-input" data-id="${row.id}" data-field="NPS" value="${row.NPS || ''}" min="0" max="10"></td>
+                <td><input type="text" class="free-edit-input" list="list-comentarios2" data-id="${row.id}" data-field="Comentarios_NPS" value="${row.Comentarios_NPS || ''}"></td>
             </tr>
         `;
     });
@@ -108,96 +186,196 @@ function renderTable(dataArray) {
     tableBody.innerHTML = rowsHtml;
 }
 
-async function loadData() {
-    const loader = document.getElementById("loader");
-    const tableContainer = document.getElementById("tableContainer");
-
-    try {
-        const dbRef = ref(database, 'historial_completado');
-        const snapshot = await get(dbRef);
-
-        if (snapshot.exists()) {
-            const data = snapshot.val();
-            // Mapeamos el ID real de Firebase para poder actualizarlo después
-            allFirebaseData = Object.keys(data).map(key => {
-                return { ...data[key], id: key };
-            });
-            
-            renderTable(allFirebaseData);
-            loader.style.display = "none";
-            tableContainer.style.display = "block";
-            setupDoubleClickEvents();
-        } else {
-            loader.innerHTML = "<p>No hay datos en Firebase.</p>";
-        }
-    } catch (error) {
-        console.error("Error:", error);
-    }
-}
-
-// Lógica para descartar/restaurar en Firebase
-document.getElementById('tableBody').addEventListener('click', async (e) => {
-    if (e.target.tagName === 'BUTTON' && e.target.classList.contains('btn-action')) {
+// --- EVENTOS DE GUARDADO (CRM Y ADMIN) ---
+document.getElementById('tableBody')?.addEventListener('change', async (e) => {
+    if (e.target.classList.contains('free-edit-select') || e.target.classList.contains('free-edit-input')) {
         const id = e.target.dataset.id;
-        const action = e.target.dataset.action;
-        const isHiding = action === 'hide';
-        const msg = isHiding ? "¿Descartar este registro del reporte?" : "¿Restaurar este registro a la tabla principal?";
-        
-        if (confirm(msg)) {
-            try {
-                // Actualiza el nodo específico en Firebase
-                const updates = {};
-                updates['historial_completado/' + id + '/descartado'] = isHiding;
-                await update(ref(database), updates);
+        const field = e.target.dataset.field;
+        const value = e.target.value.trim();
 
-                // Actualiza la memoria local
-                const rowIndex = allFirebaseData.findIndex(r => r.id === id);
-                if (rowIndex > -1) {
-                    allFirebaseData[rowIndex].descartado = isHiding;
+        try {
+            const updates = {};
+            updates[`historial_completado/${id}/${field}`] = value;
+            await update(ref(database), updates);
+            
+            const row = allFirebaseData.find(r => r.id === id);
+            if (row) row[field] = value;
+            
+            updateDatalists();
+        } catch (error) {
+            alert("Error al guardar campo CRM: " + error.message);
+        }
+    }
+});
+
+document.getElementById('tableBody')?.addEventListener('focusout', async (e) => {
+    if (isAdmin && e.target.tagName === 'TD' && e.target.isContentEditable) {
+        const tr = e.target.closest('tr');
+        const id = tr.dataset.rowid;
+        const field = e.target.dataset.field;
+        let newValue = e.target.innerText.trim();
+
+        if (id && field) {
+            try {
+                if(field === "Cliente") {
+                    const firstTd = tr.children[8].innerText.trim();
+                    const lastTd = tr.children[9].innerText.trim();
+                    newValue = `${firstTd} ${lastTd}`.trim();
                 }
+                const updates = {};
+                updates[`historial_completado/${id}/${field}`] = newValue;
+                await update(ref(database), updates);
                 
-                // Aplicar filtros de fecha actuales si existen
-                aplicarFiltros(); 
+                const row = allFirebaseData.find(r => r.id === id);
+                if (row) row[field] = newValue;
             } catch (error) {
-                alert("Error al comunicar con Firebase: " + error.message);
+                alert("Error al guardar estructura base: " + error.message);
             }
         }
     }
 });
 
-// Colapso de columnas con Doble Clic
-function setupDoubleClickEvents() {
-    const headers = document.querySelectorAll('#tableHeaders th');
-    headers.forEach((th, index) => {
-        th.addEventListener('dblclick', () => {
-            th.classList.toggle('collapsed-col');
-            const rows = document.querySelectorAll('#tableBody tr');
-            rows.forEach(row => {
-                const td = row.children[index];
-                if (td) td.classList.toggle('collapsed-col');
-            });
-        });
-    });
-}
+// --- ACCIONES DE INTERFAZ Y CARGA EXCEL ---
+document.getElementById('adminLockBtn')?.addEventListener('click', (e) => {
+    if (!isAdmin) {
+        const pin = prompt("PIN de Administrador:");
+        if (pin === "2099") {
+            isAdmin = true;
+            e.target.textContent = "🔓 Edición DB Habilitada";
+            e.target.classList.add("unlocked");
+            aplicarFiltros(); 
+        } else if (pin !== null) {
+            alert("Acceso denegado, ¡multiplícate por cero!");
+        }
+    } else {
+        isAdmin = false;
+        e.target.textContent = "🔒 Desbloquear Edición DB";
+        e.target.classList.remove("unlocked");
+        aplicarFiltros(); 
+    }
+});
 
-// Botón: Ver Ocultos / Volver
-document.getElementById('toggleViewBtn').addEventListener('click', (e) => {
+document.getElementById('excelUpload')?.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const loader = document.getElementById("loader");
+    const tableContainer = document.getElementById("tableContainer");
+    document.getElementById("loaderText").innerText = "Procesando Excel...";
+    tableContainer.style.display = "none";
+    loader.style.display = "flex";
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+        try {
+            const data = new Uint8Array(event.target.result);
+            const workbook = XLSX.read(data, {type: 'array'});
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1});
+            
+            const excelRowsByVin = {};
+            rows.forEach((row, index) => {
+                if (index === 0) return; 
+                const vin = row[6]; 
+                if (!vin) return;
+                
+                if (!excelRowsByVin[vin]) excelRowsByVin[vin] = [];
+                excelRowsByVin[vin].push({
+                    orden: row[0] || "",
+                    nombre: row[1] || "",
+                    tel: row[2] || "",
+                    email: row[4] || "",
+                    anio: row[10] || "",
+                    fechaCierre: row[11] || "",
+                    monto: parseFloat(row[13]) || 0 
+                });
+            });
+
+            const resolvedExcelData = {};
+            for (const vin in excelRowsByVin) {
+                let group = excelRowsByVin[vin];
+                const nGroup = group.filter(r => String(r.orden).toUpperCase().startsWith('N'));
+                if (nGroup.length > 0) group = nGroup;
+                group.sort((a, b) => b.monto - a.monto);
+                resolvedExcelData[vin] = group[0];
+            }
+
+            const updates = {};
+            let actualizados = 0;
+
+            allFirebaseData.forEach(fbMatch => {
+                const excelMatch = resolvedExcelData[fbMatch.VIN];
+                if (excelMatch) {
+                    updates[`historial_completado/${fbMatch.id}/OrdenReparacion`] = excelMatch.orden;
+                    updates[`historial_completado/${fbMatch.id}/NombreExcel`] = excelMatch.nombre;
+                    updates[`historial_completado/${fbMatch.id}/TelefonoExcel`] = excelMatch.tel;
+                    updates[`historial_completado/${fbMatch.id}/EmailExcel`] = excelMatch.email;
+                    updates[`historial_completado/${fbMatch.id}/AnioModelo`] = excelMatch.anio;
+                    updates[`historial_completado/${fbMatch.id}/FechaCierre`] = excelMatch.fechaCierre;
+                    updates[`historial_completado/${fbMatch.id}/MontoTotal`] = excelMatch.monto;
+                    actualizados++;
+                }
+            });
+
+            if (Object.keys(updates).length > 0) {
+                await update(ref(database), updates);
+                alert(`¡Excelente! Se actualizaron ${actualizados} registros.`);
+                await fetchFirebaseData(); 
+            } else {
+                alert("No se encontraron coincidencias de VIN.");
+                loader.style.display = "none";
+                tableContainer.style.display = "block";
+            }
+        } catch (error) {
+            alert("Error leyendo el Excel: " + error.message);
+        }
+        e.target.value = ''; 
+    };
+    reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('tableBody')?.addEventListener('click', async (e) => {
+    if (e.target.tagName === 'BUTTON' && e.target.classList.contains('btn-action')) {
+        const id = e.target.dataset.id;
+        const isHiding = e.target.dataset.action === 'hide';
+        if (confirm(isHiding ? "¿Descartar este registro?" : "¿Restaurar registro?")) {
+            const updates = {};
+            updates['historial_completado/' + id + '/descartado'] = isHiding;
+            await update(ref(database), updates);
+            const rowIndex = allFirebaseData.findIndex(r => r.id === id);
+            if (rowIndex > -1) allFirebaseData[rowIndex].descartado = isHiding;
+            aplicarFiltros(); 
+        }
+    }
+});
+
+document.getElementById('toggleColsBtn')?.addEventListener('click', (e) => {
+    const hiddenCols = document.querySelectorAll('.col-no-importante');
+    let isHidden = hiddenCols.length > 0 && hiddenCols[0].style.display === 'none';
+    hiddenCols.forEach(col => col.style.display = isHidden ? '' : 'none');
+    e.target.textContent = isHidden ? "Ocultar No Importantes" : "Mostrar No Importantes";
+});
+
+document.getElementById('toggleViewBtn')?.addEventListener('click', (e) => {
     if (currentViewMode === "normal") {
         currentViewMode = "ocultos";
         e.target.textContent = "Volver a Vista Normal";
-        e.target.style.backgroundColor = "#e74c3c"; // Rojo
     } else {
         currentViewMode = "normal";
         e.target.textContent = "Ver Ocultos";
-        e.target.style.backgroundColor = "#f39c12"; // Naranja
     }
     aplicarFiltros();
 });
 
-// Filtros de fecha centralizados
+// --- LÓGICA DE FILTROS ---
 function aplicarFiltros() {
-    const startDateStr = document.getElementById('startDate').value;
-    const endDateStr = document.getElementById('endDate').value;
+    const startDateElement = document.getElementById('startDate');
+    const endDateElement = document.getElementById('endDate');
+    
+    if (!startDateElement || !endDateElement) return;
+
+    const startDateStr = startDateElement.value;
+    const endDateStr = endDateElement.value;
 
     if (!startDateStr || !endDateStr) {
         renderTable(allFirebaseData);
@@ -209,64 +387,65 @@ function aplicarFiltros() {
     endDate.setHours(23, 59, 59, 999); 
 
     const filteredData = allFirebaseData.filter(row => {
-        if (!row.Fecha) return false;
-        const rowDate = parseDateString(row.Fecha);
+        if (!row.FechaCierre) return false; 
+        const rowDate = parseDateString(row.FechaCierre);
         return rowDate >= startDate && rowDate <= endDate;
     });
 
     renderTable(filteredData);
 }
 
-document.getElementById('filterBtn').addEventListener('click', () => {
+document.getElementById('filterBtn')?.addEventListener('click', () => {
     aplicarFiltros();
-    document.getElementById('resetBtn').style.display = 'inline-block';
+    const resetBtn = document.getElementById('resetBtn');
+    if(resetBtn) resetBtn.style.display = 'inline-block';
 });
 
-document.getElementById('resetBtn').addEventListener('click', () => {
+document.getElementById('resetBtn')?.addEventListener('click', () => {
     document.getElementById('startDate').value = '';
     document.getElementById('endDate').value = '';
     aplicarFiltros();
     document.getElementById('resetBtn').style.display = 'none';
 });
 
-// Exportar a Excel a partir de datos crudos (ignora colapsos y UI)
-document.getElementById('exportExcelBtn').addEventListener('click', () => {
-    // Tomamos solo los datos visibles según el filtro y vista actual
+// --- EXPORTAR A EXCEL ---
+document.getElementById('exportExcelBtn')?.addEventListener('click', () => {
     const startDateStr = document.getElementById('startDate').value;
     const endDateStr = document.getElementById('endDate').value;
     
     let datosExportar = allFirebaseData.filter(row => {
         if (currentViewMode === "normal" && row.descartado) return false;
         if (currentViewMode === "ocultos" && !row.descartado) return false;
-        
-        if (startDateStr && endDateStr && row.Fecha) {
+        if (startDateStr && endDateStr && row.FechaCierre) {
             const sd = parseDateString(startDateStr);
             const ed = parseDateString(endDateStr);
             ed.setHours(23, 59, 59, 999);
-            const rd = parseDateString(row.Fecha);
+            const rd = parseDateString(row.FechaCierre);
             if (rd < sd || rd > ed) return false;
+        } else if (startDateStr && endDateStr && !row.FechaCierre) {
+            return false;
         }
         return true;
     });
 
-    // Mapeo exacto de las columnas de JD Power
     const arrayParaExcel = datosExportar.map(row => {
         const { first, last } = splitName(row.Cliente);
         return {
             "Codigo de Dealer": "B20ABVE002",
-            "Nombre del Dealer [Nombre comercial NO razon Social]": "Hyundai Coatza",
+            "Nombre del Dealer": "Hyundai Coatza",
             "Ciudad o Estado": "VERACRUZ",
             "VIN": row.VIN || "",
             "Tipo de Orden (W, C ó I)": "C",
             "Tipo de Operación": "MANTENIMIENTO",
-            "Número de Orden": "",
-            "Nombre del Cliente": first,
-            "Apellido del cliente": last,
-            "Teléfono de contacto del cliente 1 [10 digitos]": "",
-            "Teléfono de contacto del cliente 2 [10 digitos]": "",
-            "Teléfono de contacto del cliente 3 [10 digitos]": "",
-            "E-mail del cliente": "",
-            "Nombre de Asesor de Servicio": row.Asesor || "",
+            "ORDEN": row.OrdenReparacion || "",
+            "Nombre": first,
+            "Apellido": last,
+            "Nombre Completo (DMS)": row.NombreExcel || "",
+            "Telefono": row.TelefonoExcel || "",
+            "Teléfono de contacto 2": row.TelefonoExcel || "",
+            "Teléfono de contacto 3": row.TelefonoExcel || "",
+            "E-mail del cliente": row.EmailExcel || "",
+            "Nombre de Asesor": formatAsesor(row.Asesor),
             "RFC del Asesor": "",
             "Modelo del Auto": row.Vehiculo || "",
             "Subsidiario (HMM)": "HMM",
@@ -274,28 +453,59 @@ document.getElementById('exportExcelBtn').addEventListener('click', () => {
             "Fecha de envio": "",
             "Codigo de Region (B20AB)": "B20AB",
             "Codigo unico Dealer": "VE002",
-            "Cliente de 1era ocasión (Y ó N)": esPrimeraOcasion(row.Servicio),
-            "Año modelo del vehiculo": "",
-            "Fecha de cierre de (Orden de Reparación)": "",
-            "Monto total pagado en la RO": "",
+            "Y o N": esPrimeraOcasion(row.Servicio),
+            "Año": row.AnioModelo || "",
+            "F.Factura": row.FechaCierre || "",
+            "Total": row.MontoTotal || "",
             "Fecha de Cita": row.Fecha || "",
             "Motivo": row.Servicio || "",
             "Calificación": row.calif || "",
-            "Obserservaciones": row.comentarios || ""
+            "Observaciones": row.comentarios || "",
+            "CONTACTADO": row.Contactado || "",
+            "Comentario de PFSU": row.Comentario_PFSU || "",
+            "Calificacion de lavado": row.Calificacion_Lavado || "",
+            "Area de mejora": row.Area_Mejora || "",
+            "Atencion y entrega": row.Atencion_Entrega || "",
+            "Comentarios Atencion": row.Comentarios_Atencion || "",
+            "NPS": row.NPS || "",
+            "Comentarios NPS": row.Comentarios_NPS || ""
         };
     });
 
     const ws = XLSX.utils.json_to_sheet(arrayParaExcel);
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "JDPower");
-    XLSX.writeFile(wb, "Reporte_HyundaiCoatza.xlsx");
+    XLSX.utils.book_append_sheet(wb, ws, "JDPower_Full");
+    XLSX.writeFile(wb, "Reporte_JDPower_CRM.xlsx");
 });
 
-document.getElementById('toggleColsBtn').addEventListener('click', (e) => {
-    const emptyCols = document.querySelectorAll('.col-vacia');
-    let isHidden = emptyCols[0].style.display === 'none';
-    emptyCols.forEach(col => col.style.display = isHidden ? '' : 'none');
-    e.target.textContent = isHidden ? "Ocultar Columnas Vacías" : "Mostrar Columnas Vacías";
-});
+// --- INICIALIZACIÓN PRINCIPAL ---
+async function fetchFirebaseData() {
+    const loader = document.getElementById("loader");
+    const tableContainer = document.getElementById("tableContainer");
+    if(loader) loader.style.display = "flex";
 
-document.addEventListener("DOMContentLoaded", loadData);
+    try {
+        const dbRef = ref(database, 'historial_completado');
+        const snapshot = await get(dbRef);
+        if (snapshot.exists()) {
+            const data = snapshot.val();
+            allFirebaseData = Object.keys(data).map(key => ({ ...data[key], id: key }));
+            updateDatalists();
+            aplicarFiltros();
+            if(loader) loader.style.display = "none";
+            if(tableContainer) tableContainer.style.display = "block";
+        } else {
+            if(loader) loader.innerHTML = "<p>D'oh! No hay datos en Firebase.</p>";
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        if(loader) loader.innerHTML = `<p style="color:red;">Error de red: ${error.message}</p>`;
+    }
+}
+
+// ARREGLO DE CARGA SEGURA: Garantiza que la función se dispare sin importar el tiempo de renderizado
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", fetchFirebaseData);
+} else {
+    fetchFirebaseData();
+}

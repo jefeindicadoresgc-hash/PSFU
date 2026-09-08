@@ -3,81 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - Hyundai Coatza N-Line</title>
+    <title>Reporte de Servicio - Edición Springfield</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
+    <!-- Listas de autocompletado dinámico para el CRM -->
+    <datalist id="list-pfsu"></datalist>
+    <datalist id="list-mejora"></datalist>
+    <datalist id="list-comentarios1"></datalist>
+    <datalist id="list-comentarios2"></datalist>
+
     <div class="dashboard-container">
         <header class="header">
             <div class="header-titles">
-                <span class="n-line-badge">N <span>Line</span></span>
                 <h1>Reporte de Servicio</h1>
                 <p>Hyundai Coatzacoalcos</p>
             </div>
             
+            <!-- Carrusel Simpsons -->
+            <div class="carousel-container">
+                <img id="simpsonGif" src="MEDIA/GIF1.gif" alt="Simpsons Animación">
+            </div>
+
             <div class="filter-container">
                 <div class="date-filters">
+                    <span>Filtro por Cierre:</span>
                     <label>Desde: <input type="date" id="startDate" class="date-input"></label>
                     <label>Hasta: <input type="date" id="endDate" class="date-input"></label>
                     <button id="filterBtn" class="btn btn-secondary">Filtrar</button>
-                    <button id="resetBtn" class="btn btn-secondary" style="display: none;">Limpiar Filtro</button>
+                    <button id="resetBtn" class="btn btn-secondary" style="display: none;">Limpiar</button>
                 </div>
             </div>
 
             <div class="header-actions">
-                <button id="toggleColsBtn" class="btn btn-secondary">Ocultar Columnas Vacías</button>
+                <button id="adminLockBtn" class="btn btn-lock">🔒 Desbloquear Edición DB</button>
+                <input type="file" id="excelUpload" accept=".xls,.xlsx" style="display: none;">
+                <label for="excelUpload" class="btn btn-success">Cargar Excel</label>
+                
+                <!-- Botones de Vista -->
+                <button id="toggleColsBtn" class="btn btn-secondary">Ocultar No Importantes</button>
                 <button id="toggleViewBtn" class="btn btn-warning">Ver Ocultos</button>
                 <button id="exportExcelBtn" class="btn btn-primary">Exportar a Excel</button>
             </div>
         </header>
 
-        <div id="loader" class="ghost-loader-container">
-            <div class="ghost">
-                <div class="eyes"></div>
-                <div class="skirt"></div>
-            </div>
-            <p>Sincronizando con Firebase...</p>
+        <!-- Pantalla de carga con estilo -->
+        <div id="loader" class="simpson-loader-container">
+            <p id="loaderText">Conectando a la planta nuclear...</p>
         </div>
 
         <div class="table-container" style="display: none;" id="tableContainer">
             <table id="dataSheetTable">
                 <thead>
                     <tr id="tableHeaders">
-                        <th>Acción</th> <!-- Nueva columna para el botón X -->
-                        <th>Codigo de Dealer</th>
-                        <th>Nombre del Dealer [Nombre comercial NO razon Social]</th>
-                        <th>Ciudad o Estado</th>
+                        <!-- Columnas base y reducciones de ancho -->
+                        <th>Acción</th>
+                        <th class="col-no-importante">Codigo de Dealer</th>
+                        <th class="col-no-importante">Nombre del Dealer</th>
+                        <th class="col-no-importante">Ciudad o Estado</th>
                         <th>VIN</th>
-                        <th>Tipo de Orden (W, C ó I)</th>
-                        <th>Tipo de Operación</th>
-                        <th class="col-vacia">Número de Orden</th>
-                        <th>Nombre del Cliente</th>
-                        <th>Apellido del cliente</th>
-                        <th class="col-vacia">Teléfono de contacto del cliente 1 [10 digitos]</th>
-                        <th class="col-vacia">Teléfono de contacto del cliente 2 [10 digitos]</th>
-                        <th class="col-vacia">Teléfono de contacto del cliente 3 [10 digitos]</th>
-                        <th class="col-vacia">E-mail del cliente</th>
-                        <th>Nombre de Asesor de Servicio</th>
-                        <th class="col-vacia">RFC del Asesor</th>
+                        <th class="col-no-importante">Tipo de Orden (W, C ó I)</th>
+                        <th class="col-no-importante">Tipo de Operación</th>
+                        <th>ORDEN</th>
+                        <th>Nombre</th>
+                        <th>Apellido</th>
+                        <th>Nombre Completo (DMS)</th>
+                        <th>Telefono</th>
+                        <th class="col-no-importante">Teléfono de contacto 2</th>
+                        <th class="col-no-importante">Teléfono de contacto 3</th>
+                        <th class="col-no-importante">E-mail del cliente</th> <!-- Pasado a No Importante -->
+                        <th>Asesor</th>
+                        <th class="col-no-importante">RFC del Asesor</th>
                         <th>Modelo del Auto</th>
-                        <th>Subsidiario (HMM)</th>
-                        <th>Marca (H)</th>
-                        <th class="col-vacia">Fecha de envio</th>
-                        <th>Codigo de Region (B20AB)</th>
-                        <th>Codigo unico Dealer</th>
-                        <th>Cliente de 1era ocasión (Y ó N)</th>
-                        <th class="col-vacia">Año modelo del vehiculo</th>
-                        <th class="col-vacia">Fecha de cierre de ("Orden de Reparación")</th>
-                        <th class="col-vacia">Monto total pagado en la RO</th>
+                        <th class="col-no-importante">Subsidiario (HMM)</th>
+                        <th class="col-no-importante">Marca (H)</th>
+                        <th class="col-no-importante">Fecha de envio</th>
+                        <th class="col-no-importante">Codigo de Region (B20AB)</th>
+                        <th class="col-no-importante">Codigo unico Dealer</th>
+                        <th>Y o N</th>
+                        <th>Año</th>
+                        <th>F.Factura</th>
+                        <th>Total</th>
                         <th>Fecha de Cita</th>
                         <th>Motivo</th>
                         <th>Calificación</th>
-                        <th>Obserservaciones</th>
+                        <th>Observaciones</th>
+                        
+                        <!-- NUEVAS COLUMNAS CRM (Interactivas) -->
+                        <th class="crm-header">CONTACTADO</th>
+                        <th class="crm-header">Comentario de PFSU</th>
+                        <th class="crm-header">Calificacion de lavado</th>
+                        <th class="crm-header">Area de mejora</th>
+                        <th class="crm-header">Atencion y entrega</th>
+                        <th class="crm-header">Comentarios</th>
+                        <th class="crm-header">NPS</th>
+                        <th class="crm-header">Comentarios</th>
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <!-- Registros dinámicos -->
+                    <!-- Registros dinámicos inyectados por app.js -->
                 </tbody>
             </table>
         </div>
