@@ -15,17 +15,15 @@ let allFirebaseData = [];
 let currentViewMode = "normal";
 let isAdmin = false;
 
-// --- CARRUSEL SIMPSONS ---
+// Carrusel Simpsons
 let currentGifIndex = 1;
 setInterval(() => {
     currentGifIndex = currentGifIndex >= 7 ? 1 : currentGifIndex + 1;
     const gifElement = document.getElementById('simpsonGif');
-    if (gifElement) {
-        gifElement.src = `MEDIA/GIF${currentGifIndex}.gif`;
-    }
+    if (gifElement) gifElement.src = `MEDIA/GIF${currentGifIndex}.gif`;
 }, 3500);
 
-// --- FUNCIONES DE FORMATEO Y LÓGICA DE NEGOCIO ---
+// Funciones Auxiliares
 function splitName(fullName) {
     if (!fullName) return { first: "", last: "" };
     const parts = fullName.trim().split(" ");
@@ -55,9 +53,7 @@ function esPrimeraOcasion(motivo) {
 function formatAsesor(asesorStr) {
     if (!asesorStr) return "";
     const match = asesorStr.match(/(0[12]\s*ASE)[-\s]+([A-ZÁÉÍÓÚÑ]+)/i);
-    if (match) {
-        return `${match[1].replace('-','').trim()} ${match[2]}`.toUpperCase();
-    }
+    if (match) return `${match[1].replace('-','').trim()} ${match[2]}`.toUpperCase();
     return asesorStr.split(" ")[0].toUpperCase();
 }
 
@@ -74,24 +70,17 @@ function updateDatalists() {
 
     const buildOptions = (set) => Array.from(set).map(val => `<option value="${val}">`).join('');
     
-    const pfsuList = document.getElementById('list-pfsu');
-    const mejoraList = document.getElementById('list-mejora');
-    const com1List = document.getElementById('list-comentarios1');
-    const com2List = document.getElementById('list-comentarios2');
-
-    if (pfsuList) pfsuList.innerHTML = buildOptions(pfsuSet);
-    if (mejoraList) mejoraList.innerHTML = buildOptions(mejoraSet);
-    if (com1List) com1List.innerHTML = buildOptions(com1Set);
-    if (com2List) com2List.innerHTML = buildOptions(com2Set);
+    if (document.getElementById('list-pfsu')) document.getElementById('list-pfsu').innerHTML = buildOptions(pfsuSet);
+    if (document.getElementById('list-mejora')) document.getElementById('list-mejora').innerHTML = buildOptions(mejoraSet);
+    if (document.getElementById('list-comentarios1')) document.getElementById('list-comentarios1').innerHTML = buildOptions(com1Set);
+    if (document.getElementById('list-comentarios2')) document.getElementById('list-comentarios2').innerHTML = buildOptions(com2Set);
 }
 
-// --- RENDERIZADO DE TABLA ---
 function renderTable(dataArray) {
     const tableBody = document.getElementById("tableBody");
     if (!tableBody) return;
     
     let rowsHtml = "";
-
     const datosMostrar = dataArray.filter(row => currentViewMode === "normal" ? !row.descartado : row.descartado === true);
 
     datosMostrar.sort((a, b) => {
@@ -169,8 +158,6 @@ function renderTable(dataArray) {
                 <td ${editAttr} data-field="Servicio">${row.Servicio || ""}</td>
                 <td ${editAttr} data-field="calif">${row.calif || ""}</td>
                 <td ${editAttr} data-field="comentarios">${row.comentarios || ""}</td>
-                
-                <!-- Campos CRM -->
                 <td>${selContactado}</td>
                 <td><input type="text" class="free-edit-input" list="list-pfsu" data-id="${row.id}" data-field="Comentario_PFSU" value="${row.Comentario_PFSU || ''}"></td>
                 <td>${selLavado}</td>
@@ -186,21 +173,18 @@ function renderTable(dataArray) {
     tableBody.innerHTML = rowsHtml;
 }
 
-// --- EVENTOS DE GUARDADO (CRM Y ADMIN) ---
+// Interacciones DOM
 document.getElementById('tableBody')?.addEventListener('change', async (e) => {
     if (e.target.classList.contains('free-edit-select') || e.target.classList.contains('free-edit-input')) {
         const id = e.target.dataset.id;
         const field = e.target.dataset.field;
         const value = e.target.value.trim();
-
         try {
             const updates = {};
             updates[`historial_completado/${id}/${field}`] = value;
             await update(ref(database), updates);
-            
             const row = allFirebaseData.find(r => r.id === id);
             if (row) row[field] = value;
-            
             updateDatalists();
         } catch (error) {
             alert("Error al guardar campo CRM: " + error.message);
@@ -225,17 +209,30 @@ document.getElementById('tableBody')?.addEventListener('focusout', async (e) => 
                 const updates = {};
                 updates[`historial_completado/${id}/${field}`] = newValue;
                 await update(ref(database), updates);
-                
                 const row = allFirebaseData.find(r => r.id === id);
                 if (row) row[field] = newValue;
             } catch (error) {
-                alert("Error al guardar estructura base: " + error.message);
+                alert("Error al guardar: " + error.message);
             }
         }
     }
 });
 
-// --- ACCIONES DE INTERFAZ Y CARGA EXCEL ---
+document.getElementById('tableBody')?.addEventListener('click', async (e) => {
+    if (e.target.tagName === 'BUTTON' && e.target.classList.contains('btn-action')) {
+        const id = e.target.dataset.id;
+        const isHiding = e.target.dataset.action === 'hide';
+        if (confirm(isHiding ? "¿Descartar este registro?" : "¿Restaurar registro?")) {
+            const updates = {};
+            updates['historial_completado/' + id + '/descartado'] = isHiding;
+            await update(ref(database), updates);
+            const rowIndex = allFirebaseData.findIndex(r => r.id === id);
+            if (rowIndex > -1) allFirebaseData[rowIndex].descartado = isHiding;
+            aplicarFiltros(); 
+        }
+    }
+});
+
 document.getElementById('adminLockBtn')?.addEventListener('click', (e) => {
     if (!isAdmin) {
         const pin = prompt("PIN de Administrador:");
@@ -244,9 +241,7 @@ document.getElementById('adminLockBtn')?.addEventListener('click', (e) => {
             e.target.textContent = "🔓 Edición DB Habilitada";
             e.target.classList.add("unlocked");
             aplicarFiltros(); 
-        } else if (pin !== null) {
-            alert("Acceso denegado, ¡multiplícate por cero!");
-        }
+        } else if (pin !== null) alert("Acceso denegado, ¡multiplícate por cero!");
     } else {
         isAdmin = false;
         e.target.textContent = "🔒 Desbloquear Edición DB";
@@ -255,6 +250,87 @@ document.getElementById('adminLockBtn')?.addEventListener('click', (e) => {
     }
 });
 
+// NUEVO: Ocultar Columnas con Persistencia LocalStorage
+document.getElementById('toggleColsBtn')?.addEventListener('click', (e) => {
+    const table = document.getElementById('dataSheetTable');
+    table.classList.toggle('hide-cols');
+    const isHidden = table.classList.contains('hide-cols');
+    localStorage.setItem('hideNonImportant', isHidden);
+    e.target.textContent = isHidden ? "Mostrar No Importantes" : "Ocultar No Importantes";
+});
+
+document.getElementById('toggleViewBtn')?.addEventListener('click', (e) => {
+    currentViewMode = currentViewMode === "normal" ? "ocultos" : "normal";
+    e.target.textContent = currentViewMode === "normal" ? "Ver Ocultos" : "Volver a Vista Normal";
+    aplicarFiltros();
+});
+
+// Lógica de Filtros por Fecha
+function aplicarFiltros() {
+    const startDateElement = document.getElementById('startDate');
+    const endDateElement = document.getElementById('endDate');
+    if (!startDateElement || !endDateElement) return;
+
+    const startDateStr = startDateElement.value;
+    const endDateStr = endDateElement.value;
+
+    if (!startDateStr || !endDateStr) {
+        renderTable(allFirebaseData);
+        return;
+    }
+
+    const startDate = parseDateString(startDateStr);
+    const endDate = parseDateString(endDateStr);
+    endDate.setHours(23, 59, 59, 999); 
+
+    const filteredData = allFirebaseData.filter(row => {
+        if (!row.FechaCierre) return false; 
+        const rowDate = parseDateString(row.FechaCierre);
+        return rowDate >= startDate && rowDate <= endDate;
+    });
+
+    renderTable(filteredData);
+}
+
+document.getElementById('filterBtn')?.addEventListener('click', () => {
+    document.getElementById('searchInput').value = ''; // Limpia el buscador al filtrar por fecha
+    aplicarFiltros();
+    const resetBtn = document.getElementById('resetBtn');
+    if(resetBtn) resetBtn.style.display = 'inline-block';
+});
+
+document.getElementById('resetBtn')?.addEventListener('click', () => {
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('searchInput').value = '';
+    aplicarFiltros();
+    document.getElementById('resetBtn').style.display = 'none';
+});
+
+// NUEVO: Buscador Global (Ignora Fechas y busca en toda la DB)
+document.getElementById('searchBtn')?.addEventListener('click', () => {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
+    
+    if (!searchTerm) {
+        aplicarFiltros(); // Si está vacío, regresa a la vista filtrada por fechas
+        return;
+    }
+
+    // Limpiamos visualmente los filtros de fecha para indicar que estamos en búsqueda global
+    document.getElementById('startDate').value = '';
+    document.getElementById('endDate').value = '';
+    document.getElementById('resetBtn').style.display = 'none';
+
+    const searchedData = allFirebaseData.filter(row => {
+        // Obtenemos todos los valores del objeto y los unimos en un solo string para buscar
+        const rowString = Object.values(row).join(' ').toLowerCase();
+        return rowString.includes(searchTerm);
+    });
+
+    renderTable(searchedData);
+});
+
+// Lógica Excel Upload e Exportación 
 document.getElementById('excelUpload')?.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -334,88 +410,22 @@ document.getElementById('excelUpload')?.addEventListener('change', (e) => {
     reader.readAsArrayBuffer(file);
 });
 
-document.getElementById('tableBody')?.addEventListener('click', async (e) => {
-    if (e.target.tagName === 'BUTTON' && e.target.classList.contains('btn-action')) {
-        const id = e.target.dataset.id;
-        const isHiding = e.target.dataset.action === 'hide';
-        if (confirm(isHiding ? "¿Descartar este registro?" : "¿Restaurar registro?")) {
-            const updates = {};
-            updates['historial_completado/' + id + '/descartado'] = isHiding;
-            await update(ref(database), updates);
-            const rowIndex = allFirebaseData.findIndex(r => r.id === id);
-            if (rowIndex > -1) allFirebaseData[rowIndex].descartado = isHiding;
-            aplicarFiltros(); 
-        }
-    }
-});
-
-document.getElementById('toggleColsBtn')?.addEventListener('click', (e) => {
-    const hiddenCols = document.querySelectorAll('.col-no-importante');
-    let isHidden = hiddenCols.length > 0 && hiddenCols[0].style.display === 'none';
-    hiddenCols.forEach(col => col.style.display = isHidden ? '' : 'none');
-    e.target.textContent = isHidden ? "Ocultar No Importantes" : "Mostrar No Importantes";
-});
-
-document.getElementById('toggleViewBtn')?.addEventListener('click', (e) => {
-    if (currentViewMode === "normal") {
-        currentViewMode = "ocultos";
-        e.target.textContent = "Volver a Vista Normal";
-    } else {
-        currentViewMode = "normal";
-        e.target.textContent = "Ver Ocultos";
-    }
-    aplicarFiltros();
-});
-
-// --- LÓGICA DE FILTROS ---
-function aplicarFiltros() {
-    const startDateElement = document.getElementById('startDate');
-    const endDateElement = document.getElementById('endDate');
-    
-    if (!startDateElement || !endDateElement) return;
-
-    const startDateStr = startDateElement.value;
-    const endDateStr = endDateElement.value;
-
-    if (!startDateStr || !endDateStr) {
-        renderTable(allFirebaseData);
-        return;
-    }
-
-    const startDate = parseDateString(startDateStr);
-    const endDate = parseDateString(endDateStr);
-    endDate.setHours(23, 59, 59, 999); 
-
-    const filteredData = allFirebaseData.filter(row => {
-        if (!row.FechaCierre) return false; 
-        const rowDate = parseDateString(row.FechaCierre);
-        return rowDate >= startDate && rowDate <= endDate;
-    });
-
-    renderTable(filteredData);
-}
-
-document.getElementById('filterBtn')?.addEventListener('click', () => {
-    aplicarFiltros();
-    const resetBtn = document.getElementById('resetBtn');
-    if(resetBtn) resetBtn.style.display = 'inline-block';
-});
-
-document.getElementById('resetBtn')?.addEventListener('click', () => {
-    document.getElementById('startDate').value = '';
-    document.getElementById('endDate').value = '';
-    aplicarFiltros();
-    document.getElementById('resetBtn').style.display = 'none';
-});
-
-// --- EXPORTAR A EXCEL ---
 document.getElementById('exportExcelBtn')?.addEventListener('click', () => {
     const startDateStr = document.getElementById('startDate').value;
     const endDateStr = document.getElementById('endDate').value;
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase().trim();
     
     let datosExportar = allFirebaseData.filter(row => {
         if (currentViewMode === "normal" && row.descartado) return false;
         if (currentViewMode === "ocultos" && !row.descartado) return false;
+        
+        // Si hay una búsqueda global activa, respeta la búsqueda al exportar
+        if (searchTerm) {
+            const rowString = Object.values(row).join(' ').toLowerCase();
+            return rowString.includes(searchTerm);
+        }
+        
+        // Si no hay búsqueda, usa filtros de fecha
         if (startDateStr && endDateStr && row.FechaCierre) {
             const sd = parseDateString(startDateStr);
             const ed = parseDateString(endDateStr);
@@ -478,7 +488,6 @@ document.getElementById('exportExcelBtn')?.addEventListener('click', () => {
     XLSX.writeFile(wb, "Reporte_JDPower_CRM.xlsx");
 });
 
-// --- INICIALIZACIÓN PRINCIPAL ---
 async function fetchFirebaseData() {
     const loader = document.getElementById("loader");
     const tableContainer = document.getElementById("tableContainer");
@@ -490,6 +499,13 @@ async function fetchFirebaseData() {
         if (snapshot.exists()) {
             const data = snapshot.val();
             allFirebaseData = Object.keys(data).map(key => ({ ...data[key], id: key }));
+            
+            // Cargar preferencia de columnas ocultas
+            if (localStorage.getItem('hideNonImportant') === 'true') {
+                document.getElementById('dataSheetTable').classList.add('hide-cols');
+                document.getElementById('toggleColsBtn').textContent = "Mostrar No Importantes";
+            }
+
             updateDatalists();
             aplicarFiltros();
             if(loader) loader.style.display = "none";
@@ -503,7 +519,6 @@ async function fetchFirebaseData() {
     }
 }
 
-// ARREGLO DE CARGA SEGURA: Garantiza que la función se dispare sin importar el tiempo de renderizado
 if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", fetchFirebaseData);
 } else {

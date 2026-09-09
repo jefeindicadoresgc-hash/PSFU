@@ -203,3 +203,54 @@ input[data-field="Comentario_PFSU"],
 input[data-field="Area_Mejora"] {
     min-width: 250px;
 }
+
+/* Controles y Buscador Global */
+.controls-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+    max-width: 650px;
+}
+
+.search-container {
+    background-color: var(--simp-yellow);
+    padding: 10px 15px;
+    border-radius: 8px;
+    border: 2px solid var(--text-dark);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.search-input {
+    flex-grow: 1;
+    padding: 8px 12px;
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.95em;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.search-input:focus {
+    border-color: var(--simp-pink);
+}
+
+/* Sistema global para ocultar columnas */
+.hide-cols .col-no-importante {
+    display: none !important;
+}
+
+/* Anchos ajustados solicitados para el CRM */
+input[data-field="NPS"] {
+    min-width: 70px;
+    text-align: center;
+}
+input[data-field="Comentarios_Atencion"],
+input[data-field="Comentarios_NPS"],
+input[data-field="Comentario_PFSU"],
+input[data-field="Area_Mejora"] {
+    min-width: 250px;
+}

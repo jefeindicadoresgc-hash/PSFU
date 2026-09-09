@@ -8,7 +8,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
-    <!-- Listas de autocompletado dinámico para el CRM -->
     <datalist id="list-pfsu"></datalist>
     <datalist id="list-mejora"></datalist>
     <datalist id="list-comentarios1"></datalist>
@@ -21,18 +20,26 @@
                 <p>Hyundai Coatzacoalcos</p>
             </div>
             
-            <!-- Carrusel Simpsons -->
             <div class="carousel-container">
                 <img id="simpsonGif" src="MEDIA/GIF1.gif" alt="Simpsons Animación">
             </div>
 
-            <div class="filter-container">
-                <div class="date-filters">
-                    <span>Filtro por Cierre:</span>
-                    <label>Desde: <input type="date" id="startDate" class="date-input"></label>
-                    <label>Hasta: <input type="date" id="endDate" class="date-input"></label>
-                    <button id="filterBtn" class="btn btn-secondary">Filtrar</button>
-                    <button id="resetBtn" class="btn btn-secondary" style="display: none;">Limpiar</button>
+            <!-- Controles Principales -->
+            <div class="controls-wrapper">
+                <div class="filter-container">
+                    <div class="date-filters">
+                        <span>Filtro por Cierre:</span>
+                        <label>Desde: <input type="date" id="startDate" class="date-input"></label>
+                        <label>Hasta: <input type="date" id="endDate" class="date-input"></label>
+                        <button id="filterBtn" class="btn btn-secondary">Filtrar</button>
+                        <button id="resetBtn" class="btn btn-secondary" style="display: none;">Limpiar</button>
+                    </div>
+                </div>
+
+                <!-- NUEVO: Buscador Global -->
+                <div class="search-container">
+                    <input type="text" id="searchInput" class="search-input" placeholder="Buscar VIN, Orden, Nombre...">
+                    <button id="searchBtn" class="btn btn-primary">🔍 Buscar</button>
                 </div>
             </div>
 
@@ -41,23 +48,21 @@
                 <input type="file" id="excelUpload" accept=".xls,.xlsx" style="display: none;">
                 <label for="excelUpload" class="btn btn-success">Cargar Excel</label>
                 
-                <!-- Botones de Vista -->
                 <button id="toggleColsBtn" class="btn btn-secondary">Ocultar No Importantes</button>
                 <button id="toggleViewBtn" class="btn btn-warning">Ver Ocultos</button>
                 <button id="exportExcelBtn" class="btn btn-primary">Exportar a Excel</button>
             </div>
         </header>
 
-        <!-- Pantalla de carga con estilo -->
         <div id="loader" class="simpson-loader-container">
             <p id="loaderText">Conectando a la planta nuclear...</p>
         </div>
 
         <div class="table-container" style="display: none;" id="tableContainer">
+            <!-- La clase dinámica controlará las columnas ocultas -->
             <table id="dataSheetTable">
                 <thead>
                     <tr id="tableHeaders">
-                        <!-- Columnas base y reducciones de ancho -->
                         <th>Acción</th>
                         <th class="col-no-importante">Codigo de Dealer</th>
                         <th class="col-no-importante">Nombre del Dealer</th>
@@ -72,7 +77,7 @@
                         <th>Telefono</th>
                         <th class="col-no-importante">Teléfono de contacto 2</th>
                         <th class="col-no-importante">Teléfono de contacto 3</th>
-                        <th class="col-no-importante">E-mail del cliente</th> <!-- Pasado a No Importante -->
+                        <th class="col-no-importante">E-mail del cliente</th>
                         <th>Asesor</th>
                         <th class="col-no-importante">RFC del Asesor</th>
                         <th>Modelo del Auto</th>
@@ -89,8 +94,6 @@
                         <th>Motivo</th>
                         <th>Calificación</th>
                         <th>Observaciones</th>
-                        
-                        <!-- NUEVAS COLUMNAS CRM (Interactivas) -->
                         <th class="crm-header">CONTACTADO</th>
                         <th class="crm-header">Comentario de PFSU</th>
                         <th class="crm-header">Calificacion de lavado</th>
@@ -102,7 +105,7 @@
                     </tr>
                 </thead>
                 <tbody id="tableBody">
-                    <!-- Registros dinámicos inyectados por app.js -->
+                    <!-- Registros inyectados por JS -->
                 </tbody>
             </table>
         </div>
